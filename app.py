@@ -3,6 +3,7 @@ from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from models import setup_db, Movie, Actor
+from auth import AuthError, requires_auth
 import datetime
 
 
@@ -27,7 +28,8 @@ def after_request(response):
 
 #actor API
 @app.route('/actors')
-def get_all_actors():
+@requires_auth('get:actors')
+def get_all_actors(jwt):
     try:
       actors = Actor.query.all()
       actors_list = [actor.format() for actor in actors]
@@ -39,7 +41,8 @@ def get_all_actors():
       abort(500)
 
 @app.route('/actors', methods=['POST'])
-def create_actor():
+@requires_auth('post:actors')
+def create_actor(jwt):
     try:
       data = request.get_json()
       name = data.get('name')
@@ -55,7 +58,8 @@ def create_actor():
         abort(422)
 
 @app.route('/actors/<int:actor_id>', methods=['PATCH'])
-def patch_actor(actor_id):
+@requires_auth('patch:actors')
+def patch_actor(jwt, actor_id):
     data = request.get_json()
     name = data.get('name', None)
     age = data.get('age', None)
@@ -83,7 +87,8 @@ def patch_actor(actor_id):
 
 
 @app.route('/actors/<int:actor_id>', methods=['DELETE'])
-def delete_actor(actor_id):
+@requires_auth('delete:actors')
+def delete_actor(jwt, actor_id):
   actor = Actor.query.filter(Actor.id == actor_id).one_or_none()
   
   if not actor:
@@ -102,7 +107,8 @@ def delete_actor(actor_id):
 
 #movie API
 @app.route('/movies')
-def get_all_movies():
+@requires_auth('get:movies')
+def get_all_movies(jwt):
     try:
       movies = Movie.query.all()
       movies_list = [movie.format() for movie in movies]
@@ -114,7 +120,8 @@ def get_all_movies():
       abort(500)
 
 @app.route('/movies', methods=['POST'])
-def create_movie():
+@requires_auth('post:movies')
+def create_movie(jwt):
     try:
       data = request.get_json()
       title = data.get('title')
@@ -130,7 +137,8 @@ def create_movie():
         abort(422)
 
 @app.route('/movies/<int:movie_id>', methods=['PATCH'])
-def update_movie(movie_id):
+@requires_auth('patch:movies')
+def update_movie(jwt, movie_id):
   data = request.get_json()
   title = data.get('title', None)
   release_date = data.get('release_date', None)
@@ -161,7 +169,8 @@ def update_movie(movie_id):
 
 
 @app.route('/movies/<int:movie_id>', methods=['DELETE'])
-def delete_movie(movie_id):
+@requires_auth('delete:movies')
+def delete_movie(jwt, movie_id):
   movie = Movie.query.filter(Movie.id == movie_id).one_or_none()
   
   if not movie:
@@ -219,6 +228,12 @@ def unprocesable_entity(error):
         'error': 422,
         'message': 'Unprocessable entity'
     }), 422
+
+@app.errorhandler(AuthError)
+def handle_auth_error(exception):
+    response = jsonify(exception.error)
+    response.status_code = exception.status_code
+    return response
 
 if __name__ == '__main__':
     app.run()
