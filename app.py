@@ -25,7 +25,7 @@ def after_request(response):
                          'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-
+#actor API
 @app.route('/actors')
 def get_all_actors():
     try:
@@ -66,7 +66,7 @@ def patch_actor(actor_id):
       abort(404)
 
     if (not name) and (not age) and (not gender):
-        abort(422)
+      abort(422)
 
     if name:
         actor.name = name
@@ -84,22 +84,23 @@ def patch_actor(actor_id):
 
 @app.route('/actors/<int:actor_id>', methods=['DELETE'])
 def delete_actor(actor_id):
-    actor = Actor.query.filter(Actor.id == actor_id).one_or_none()
-    
-    if not actor:
-        abort(404)
-    
-    try:
-      actor.delete()
+  actor = Actor.query.filter(Actor.id == actor_id).one_or_none()
+  
+  if not actor:
+    abort(404)
+  
+  try:
+    actor.delete()
 
-      return jsonify({
-          'success': True,
-          'actors': actor_id
-      }), 200
+    return jsonify({
+        'success': True,
+        'actors': actor_id
+    }), 200
 
-    except Exception:
-      abort(422)
+  except Exception:
+    abort(422)
 
+#movie API
 @app.route('/movies')
 def get_all_movies():
     try:
@@ -111,7 +112,6 @@ def get_all_movies():
         }), 200
     except Exception:
       abort(500)
-
 
 @app.route('/movies', methods=['POST'])
 def create_movie():
@@ -129,42 +129,56 @@ def create_movie():
     except Exception:
         abort(422)
 
-@app.route('/movies/<id>', methods=['PATCH'])
-def update_movie(id):
-    body = request.get_json()
-    req_title = body.get('title')
-    req_release_date = body.get('release_date')
-    if (not req_title) and (not req_release_date):
-        abort(422)
-    release_date = datetime.datetime.strptime(req_release_date, "%Y-%m-%d")
+@app.route('/movies/<int:movie_id>', methods=['PATCH'])
+def update_movie(movie_id):
+  data = request.get_json()
+  title = data.get('title', None)
+  release_date = data.get('release_date', None)
+  movie = Movie.query.filter(Movie.id == movie_id).one_or_none()
 
-    movie = Movie.query.filter(Movie.id == id).one_or_none()
-    if not movie:
-        abort(404)
-    if req_title:
-        movie.title = req_title
-    if req_release_date:
-        movie.release_date = release_date
-    movie.update()
+  if movie is None:
+    abort(404)
 
-    return jsonify({
-        'success': True,
-        'movies': movie.format()
-    })
+  if (not title) and (not release_date):
+    abort(422)
+
+  if title:
+    movie.title = title
+
+  if release_date:
+    try:
+      release_date = datetime.datetime.strptime(release_date, "%Y-%m-%d")
+      movie.release_date = release_date
+    except Exception:
+      abort(422)
+  
+  movie.update()
+
+  return jsonify({
+      'success': True,
+      'actors': movie.format()
+  }), 200
 
 
-@app.route('/movies/<id>', methods=['DELETE'])
-def delete_movie(id):
-    movie = Movie.query.filter(Movie.id == id).one_or_none()
-    if not movie:
-        abort(404)
+@app.route('/movies/<int:movie_id>', methods=['DELETE'])
+def delete_movie(movie_id):
+  movie = Movie.query.filter(Movie.id == movie_id).one_or_none()
+  
+  if not movie:
+    abort(404)
+
+  try:
     movie.delete()
 
     return jsonify({
         'success': True,
-        'movies': id
-    })
+        'actors': movie_id
+    }), 200
 
+  except Exception:
+    abort(422)
+
+#error code
 @app.errorhandler(405)
 def not_allowed(error):
     return jsonify({
