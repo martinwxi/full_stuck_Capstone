@@ -27,112 +27,110 @@ def after_request(response):
 
 
 @app.route('/actors')
-def get_actors(jwt):
-    actors = Actor.query.all()
-    if not actors:
-        abort(404)
-
-    actors_list = [actor.format() for actor in actors]
-
-    return jsonify({
+def get_all_actors():
+    try:
+      actors = Actor.query.all()
+      actors_list = [actor.format() for actor in actors]
+      return jsonify({
         'success': True,
         'actors': actors_list
-    })
-
+        }), 200
+    except Exception:
+      abort(500)
 
 @app.route('/actors', methods=['POST'])
-def add_actor(jwt):
-    body = request.get_json()
-    req_name = body.get('name')
-    req_age = body.get('age')
-    req_gender = body.get('gender')
-
-    if not req_name:
-        abort(422)
-
-    actor = Actor(name=req_name, age=req_age, gender=req_gender)
-    actor.insert()
-
-    return jsonify({
+def create_actor():
+    try:
+      data = request.get_json()
+      name = data.get('name')
+      age = data.get('age')
+      gender = data.get('gender')
+      actor = Actor(name=name, age=age, gender=gender)
+      actor.insert()
+      return jsonify({
         'success': True,
         'actors': actor.format()
-    })
-
-
-@app.route('/actors/<id>', methods=['PATCH'])
-def update_actor(jwt, id):
-    body = request.get_json()
-    req_name = body.get('name')
-    req_age = body.get('age')
-    req_gender = body.get('gender')
-    if (not req_name) and (not req_age) and (not req_gender):
+        }), 200
+    except Exception:
         abort(422)
 
-    actor = Actor.query.filter(Actor.id == id).one_or_none()
-    if not actor:
-        abort(404)
-    if req_name:
-        actor.name = req_name
-    if req_age:
-        actor.age = req_age
-    if req_gender:
-        actor.gender = req_gender
+@app.route('/actors/<int:actor_id>', methods=['PATCH'])
+def patch_actor(actor_id):
+    data = request.get_json()
+    name = data.get('name', None)
+    age = data.get('age', None)
+    gender = data.get('gender', None)
+    actor = Actor.query.filter(Actor.id == actor_id).one_or_none()
+    
+    if actor is None:
+      abort(404)
+
+    if (not name) and (not age) and (not gender):
+        abort(422)
+
+    if name:
+        actor.name = name
+    if age:
+        actor.age = age
+    if gender:
+        actor.gender = gender
     actor.update()
 
     return jsonify({
         'success': True,
         'actors': actor.format()
-    })
+    }), 200
 
 
-@app.route('/actors/<id>', methods=['DELETE'])
-def delete_actor(jwt, id):
-    actor = Actor.query.filter(Actor.id == id).one_or_none()
+@app.route('/actors/<int:actor_id>', methods=['DELETE'])
+def delete_actor(actor_id):
+    actor = Actor.query.filter(Actor.id == actor_id).one_or_none()
+    
     if not actor:
         abort(404)
-    actor.delete()
+    
+    try:
+      actor.delete()
 
-    return jsonify({
-        'success': True,
-        'actors': id
-    })
+      return jsonify({
+          'success': True,
+          'actors': actor_id
+      }), 200
 
+    except Exception:
+      abort(422)
 
 @app.route('/movies')
-def get_movies(jwt):
-    movies = Movie.query.all()
-    if not movies:
-        abort(404)
-
-    movies_list = [movie.format() for movie in movies]
-
-    return jsonify({
+def get_all_movies():
+    try:
+      movies = Movie.query.all()
+      movies_list = [movie.format() for movie in movies]
+      return jsonify({
         'success': True,
-        'movies': movies_list
-    })
+        'actors': movies_list
+        }), 200
+    except Exception:
+      abort(500)
 
 
 @app.route('/movies', methods=['POST'])
-def add_movie(jwt):
-    body = request.get_json()
-    req_title = body.get('title')
-    req_release_date = body.get('release_date')
-    release_date = datetime.datetime.strptime(req_release_date, "%Y-%m-%d")
-
-    if not req_title:
+def create_movie():
+    try:
+      data = request.get_json()
+      title = data.get('title')
+      release_date = data.get('release_date')
+      release_date = datetime.datetime.strptime(release_date, "%Y-%m-%d")
+      movie = Movie(title=title, release_date=release_date)
+      movie.insert()
+      return jsonify({
+        'success': True,
+        'actors': movie.format()
+        }), 200
+    except Exception:
         abort(422)
 
-    movie = Movie(title=req_title, release_date=release_date)
-    movie.insert()
-
-    return jsonify({
-        'success': True,
-        'movies': movie.format()
-    })
-
-
 @app.route('/movies/<id>', methods=['PATCH'])
-def update_movie(jwt, id):
+def update_movie(id):
     body = request.get_json()
     req_title = body.get('title')
     req_release_date = body.get('release_date')
@@ -156,7 +154,7 @@ def update_movie(jwt, id):
 
 
 @app.route('/movies/<id>', methods=['DELETE'])
-def delete_movie(jwt, id):
+def delete_movie(id):
     movie = Movie.query.filter(Movie.id == id).one_or_none()
     if not movie:
         abort(404)
@@ -167,16 +165,6 @@ def delete_movie(jwt, id):
         'movies': id
     })
 
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        "success": False,
-        "error": 404,
-        "message": "resource not found"
-    }), 404
-
-
 @app.errorhandler(405)
 def not_allowed(error):
     return jsonify({
@@ -186,22 +174,37 @@ def not_allowed(error):
     }), 405
 
 
-@app.errorhandler(422)
-def unprocessable(error):
+@app.errorhandler(400)
+def bad_request(error):
     return jsonify({
-        "success": False,
-        "error": 422,
-        "message": "unprocessable"
-    }), 422
+        'success': False,
+        'error': 400,
+        'message': 'Bad request error'
+    }), 400
 
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 404,
+        'message': 'Resource not found'
+    }), 404
 
 @app.errorhandler(500)
-def server_error(error):
+def internal_server_error(error):
     return jsonify({
-        "success": False,
-        "error": 500,
-        "message": "Server error"
+        'success': False,
+        'error': 500,
+        'message': 'An error has occured, please try again'
     }), 500
+
+@app.errorhandler(422)
+def unprocesable_entity(error):
+    return jsonify({
+        'success': False,
+        'error': 422,
+        'message': 'Unprocessable entity'
+    }), 422
 
 if __name__ == '__main__':
     app.run()
